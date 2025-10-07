@@ -1,136 +1,100 @@
-import { useState } from 'react';
-import {
-  Typography,
-  Box,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TextField,
-  Button
-} from '@mui/material';
+import React, { useEffect, useState } from 'react';
 
-const EmployeeManagement = () => {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
+export default function EmployeeManagement() {
+  const [employees, setEmployees] = useState([]);
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
     email: '',
+    birthdate: '',
     salary: ''
   });
+  const [editingId, setEditingId] = useState(null);
 
-  const [employeeList, setEmployeeList] = useState([
-    {
-      firstName: 'John',
-      lastName: 'Doe',
-      address: '123 Main St',
-      city: 'Los Angeles',
-      state: 'CA',
-      zip: '90001',
-      email: 'johndoe@example.com',
-      salary: '$80,000'
-    },
-    {
-      firstName: 'Jane',
-      lastName: 'Smith',
-      address: '456 Elm St',
-      city: 'New York',
-      state: 'NY',
-      zip: '10001',
-      email: 'janesmith@example.com',
-      salary: '$95,000'
-    }
-  ]);
+  useEffect(() => {
+    fetch('/api/employees')
+      .then(res => res.json())
+      .then(setEmployees);
+  }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    const method = editingId ? 'PUT' : 'POST';
+    const url = editingId ? `/api/employees/${editingId}` : '/api/employees';
+    fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
+      .then(() => {
+        setForm({
+          first_name: '',
+          last_name: '',
+          email: '',
+          birthdate: '',
+          salary: ''
+        });
+        setEditingId(null);
+        fetch('/api/employees')
+          .then(res => res.json())
+          .then(setEmployees);
+      });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setEmployeeList((prev) => [...prev, formData]);
-    setFormData({
-      firstName: '',
-      lastName: '',
-      address: '',
-      city: '',
-      state: '',
-      zip: '',
-      email: '',
-      salary: ''
+  const handleEdit = emp => {
+    setForm({
+      first_name: emp.first_name || '',
+      last_name: emp.last_name || '',
+      email: emp.email || '',
+      birthdate: emp.birthdate ? emp.birthdate.slice(0, 10) : '',
+      salary: emp.salary || ''
     });
+    setEditingId(emp.employee_id);
+  };
+
+  const handleDelete = id => {
+    fetch(`/api/employees/${id}`, { method: 'DELETE' })
+      .then(() => fetch('/api/employees')
+        .then(res => res.json())
+        .then(setEmployees));
   };
 
   return (
-    <Box sx={{ backgroundColor: '#1c1c1c', color: 'white', minHeight: '100vh', padding: '2rem' }}>
-      <Box sx={{ backgroundColor: '#f5f5f5', padding: '2rem', borderRadius: '8px' }}>
-        <Typography variant="h4" gutterBottom>
-          Employee Management
-        </Typography>
-
-        <Typography variant="h6" gutterBottom>
-          Employee List
-        </Typography>
-        <TableContainer component={Paper} sx={{ marginBottom: '2rem' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>First Name</TableCell>
-                <TableCell>Last Name</TableCell>
-                <TableCell>Address</TableCell>
-                <TableCell>City</TableCell>
-                <TableCell>State</TableCell>
-                <TableCell>Zip</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Salary</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {employeeList.map((emp, index) => (
-                <TableRow key={index}>
-                  <TableCell>{emp.firstName}</TableCell>
-                  <TableCell>{emp.lastName}</TableCell>
-                  <TableCell>{emp.address}</TableCell>
-                  <TableCell>{emp.city}</TableCell>
-                  <TableCell>{emp.state}</TableCell>
-                  <TableCell>{emp.zip}</TableCell>
-                  <TableCell>{emp.email}</TableCell>
-                  <TableCell>{emp.salary}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <Typography variant="h6" gutterBottom>
-          Add New Employee
-        </Typography>
-        <Box component="form" onSubmit={handleSubmit} sx={{ display: 'grid', gap: '1rem', maxWidth: '600px' }}>
-          {['firstName', 'lastName', 'address', 'city', 'state', 'zip', 'email', 'salary'].map((field) => (
-            <TextField
-              key={field}
-              label={field.replace(/^\w/, (c) => c.toUpperCase())}
-              name={field}
-              value={formData[field]}
-              onChange={handleChange}
-              variant="outlined"
-              fullWidth
-            />
+    <div>
+      <h2>Employee Management</h2>
+      <form onSubmit={handleSubmit}>
+        <input name="first_name" value={form.first_name} onChange={handleChange} placeholder="First Name" required />
+        <input name="last_name" value={form.last_name} onChange={handleChange} placeholder="Last Name" required />
+        <input name="email" value={form.email} onChange={handleChange} placeholder="Email" />
+        <input name="birthdate" type="date" value={form.birthdate} onChange={handleChange} placeholder="Birthdate" />
+        <input name="salary" type="number" step="0.01" value={form.salary} onChange={handleChange} placeholder="Salary" />
+        <button type="submit">{editingId ? 'Update' : 'Add'}</button>
+        {editingId && <button type="button" onClick={() => { setEditingId(null); setForm({ first_name: '', last_name: '', email: '', birthdate: '', salary: '' }); }}>Cancel</button>}
+      </form>
+      <table>
+        <thead>
+          <tr>
+            <th>First Name</th><th>Last Name</th><th>Email</th><th>Birthdate</th><th>Salary</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {employees.map(emp => (
+            <tr key={emp.employee_id}>
+              <td>{emp.first_name}</td>
+              <td>{emp.last_name}</td>
+              <td>{emp.email}</td>
+              <td>{emp.birthdate ? emp.birthdate.slice(0, 10) : ''}</td>
+              <td>{emp.salary}</td>
+              <td>
+                <button onClick={() => handleEdit(emp)}>Edit</button>
+                <button onClick={() => handleDelete(emp.employee_id)}>Delete</button>
+              </td>
+            </tr>
           ))}
-          <Button variant="contained" color="primary" type="submit">
-            Add Employee
-          </Button>
-        </Box>
-      </Box>
-    </Box>
+        </tbody>
+      </table>
+    </div>
   );
-};
-
-export default EmployeeManagement;
+}
